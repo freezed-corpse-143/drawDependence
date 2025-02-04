@@ -76,35 +76,31 @@ def is_package_installed(package_name):
         return False
     
 def analyze_dependencies(py_file_path):
-    """
-    分析 Python 文件的依赖关系。
-    返回外部包、未找到的包以及每个 Python 文件对应的本地包路径。
-    """
-    # 初始化
-    queue = deque()  # 待处理路径队列
-    visited = []  # 已访问路径列表
-    external_packages = []  # 外部包列表
-    unfound_packages = []  # 未找到的包列表
-    py_packages_path = {}  # 每个 Python 文件对应的本地包路径
 
-    # 将传入路径的绝对地址加入队列
+    queue = deque()
+    visited = []
+    external_packages = []
+    unfound_packages = []
+    py_packages_path = {}
+
+
     queue.append(py_file_path)
 
-    # 开始处理
+
     while queue:
         current_py_path = queue.popleft()
         if current_py_path in visited:
             continue
         visited.append(current_py_path)
 
-        # 解析当前文件的导入
+
         imports_list = parse_imports(current_py_path)
 
-        # 初始化当前文件的本地包路径列表
+
         if current_py_path not in py_packages_path:
             py_packages_path[current_py_path] = []
 
-        # 处理每个导入的包
+
         for package_name in imports_list:
             directory = os.path.dirname(current_py_path)
             package_path = find_package_path(package_name, directory)
