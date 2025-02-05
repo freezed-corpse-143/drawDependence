@@ -2,9 +2,11 @@ import os
 import ast
 from importlib import import_module
 import re
-from collections import  deque
+from collections import  deque, defaultdict
 import argparse
 import json
+
+os.makedirs("./output", exist_ok=True)
 
 def parse_imports(py_file_path):
     with open(py_file_path, encoding='utf-8') as f:
@@ -119,31 +121,126 @@ def analyze_dependencies(py_file_path):
 
     return external_packages, unfound_packages, py_packages_path
 
+def extract_dirs(path):
+    dirs = []
+    path = path.rstrip(os.sep)
+    while True:
+        path = os.path.dirname(path)
+        if path == "":
+            break
+        dirs.append(path)
+    return dirs
+
+def standardize_dependencies(internal_dependence):
+    file_set = set()
+    for key in internal_dependence:
+        file_set.add(key.replace("\\", '/'))
+        for item in internal_dependence[key]:
+            file_set.add(item.replace("\\", "/"))
+    file_list = list(file_set)
+
+    dir_set = set()
+    for file in file_list:
+        dir_set.update(extract_dirs(file))
+
+    dir_list = sorted(dir_set, key=len)
+
+    nodes = []
+    combo_y = defaultdict(int)
+    for file_path in file_list:
+        item = {
+            "id": file_path,
+            "text": os.path.basename(file_path),
+            "combo": os.path.dirname(file_path)
+        }
+        style = {
+            "x": 400 + len(item['combo'].split("/")) * 100,
+            "y": 200 + combo_y[item['combo']] * 100
+        }
+        combo_y[item['combo']] += 1
+        item['style'] = style
+        nodes.append(item)
+    position_set = set()
+    for node in nodes:
+        style = node['style']
+        down = True
+        while (style['x'], style['y']) in position_set:
+            if down:
+                style['y'] += 100
+            else:
+                style['x'] += 200
+            down = not down
+        position_set.add((style['x'], style['y']))
+
+    edges = []
+    index = 0
+    for key in internal_dependence:
+        for target in internal_dependence[key]:
+            item = {
+                "id": str(index),
+                "source": key.replace("\\", "/"),
+                "target": target.replace("\\", "/")
+            }
+            index += 1
+            edges.append(item)
+
+    combos = []
+    for dir in dir_list:
+        item = {
+            "id": dir
+        }
+        parent_dir = os.path.dirname(dir)
+        if parent_dir != "":
+            item['combo'] = parent_dir
+        combos.append(item)
+
+    data = {
+        "nodes": nodes,
+        "edges": edges,
+        "combos": combos
+    }
+    return data
+    
+
 def main():
     parser = argparse.ArgumentParser(description="generate dependence path")
-    parser.add_argument("py_path", type=str, required=True, help="python file path")
+    parser.add_argument("py_path", type=str, help="python file path")
+
     args = parser.parse_args()
 
     if not os.path.exists(args.py_path):
         print(f"{args.py_path} doesn't exist")
         return
     
-    internal_rependence =  analyze_dependencies(args.py_path)[2]
+    project_dir = os.path.dirname(args.py_path)
+    project_dir = project_dir.replace("\\", "/")
+    if project_dir.endswith("/"):
+        project_dir =project_dir[:-1]
 
-    edges = []
-    for key in internal_rependence:
-        if len(internal_rependence[key]) == 0:
-            continue
-        print(f"{key}\t-->\t{target}")
-        for target in internal_rependence[key]:
-            edges.append({
-                "source": key,
-                "target": target
-            })
+    basename = os.path.basename(args.py_path)
+
     
-    with open(f"{args.py_path.replace(".py", ".json")}", 'w', encoding='utf-8') as f:
-        json.dump(edges, f)
+    internal_dependence =  analyze_dependencies(args.py_path)[2]
 
+    new_internal_dependence = defaultdict(list)
+
+    for key in internal_dependence:
+        source = key.replace("\\", "/").replace(project_dir, ".")
+        for target in internal_dependence[key]:
+            target = target.replace("\\", "/").replace(project_dir, ".")
+            new_internal_dependence[source].append(target)
+
+    data = standardize_dependencies(new_internal_dependence)
+
+    with open("./template.html", encoding='utf-8') as f:
+        template_html = f.read()
+
+    template_html = template_html.replace("{}", json.dumps(data, indent=4))
+
+    
+    output_name = basename.replace(".py", ".html")
+    with open(f"./output/{output_name}", 'w', encoding='utf-8') as f:
+        f.write(template_html)
 
 if __name__ == "__main__":
     main()
