@@ -1,38 +1,58 @@
-# generateDependence.py
+# Python Dependency Graph Generator
 
-This script analyzes the dependencies of a Python file and generates a JSON file representing the dependency graph.
+This project provides a Python script to analyze and visualize the dependencies of a Python file. It generates an interactive graph using the G6 library to display the relationships between different modules and packages.
+
+## Features
+
+- **Dependency Analysis**: Parses a Python file to extract import statements and identifies both internal and external dependencies.
+- **Graph Visualization**: Generates an interactive graph to visualize the dependencies.
+- **Customizable Output**: Outputs an HTML file with the dependency graph, which can be viewed in any web browser.
+
+## Requirements
+
+- Python 3.x
+- `argparse` module
+- `ast` module
+- `os` module
+- `re` module
+- `collections` module
+- `json` module
+- `importlib` module
+
+## Installation
+
+1. Clone the repository or download the script files.
+2. Ensure you have Python 3.x installed on your system.
+3. Install the required Python modules if not already installed.
 
 ## Usage
 
-To use this script, run the following command in your terminal:
+1. Place the `drawDependence.py` and `template.html` files in your project directory.
+2. Run the script with the following command:
 
-```bash
-python generateDependence.py <python_file_path>
-```
+   ```bash
+   python drawDependence.py path/to/your/python_file.py
+	```
 
-Replace `<python_file_path>` with the path to the Python file you want to analyze.
-
-## Output
-
-The script will generate a JSON file with the same name as the input Python file but with a `.json` extension. This JSON file contains a list of edges representing the dependencies between the Python files. Each edge has a `source` and a `target` field, indicating the dependency relationship.
+3. The script will generate an HTML file in the `./output` directory with the same name as your Python file but with a `.html` extension.
+4. Open the generated HTML file in a web browser to view the dependency graph.
 
 ## Example
 
 Given a Python file `example.py`, running the script:
 
 ```bash
-python generateDependence.py example.py
+python drawDependence.py example.py
 ```
 
-Will generate a `example.json` file with content similar to:
+will generate `example.html` in the `./output` directory. Open `example.html` to see the dependency graph.
 
-```json
-[
-    {"source": "example.py", "target": "module1.py"},
-    {"source": "example.py", "target": "module2.py"},
-    {"source": "module1.py", "target": "module3.py"}
-]
-```
+## Customization
 
-This indicates that `example.py` depends on `module1.py` and `module2.py`, and `module1.py` further depends on `module3.py`.
+You can customize the appearance of the graph by modifying the `template.html` file. The graph is rendered using the G6 library, so you can refer to the [G6 documentation](https://g6.antv.vision/en) for more advanced customization options.
+
+## Acknowledgments
+
+- [G6](https://g6.antv.vision/en) for the graph visualization library.
+- Python's standard libraries for making this project possible.
 
