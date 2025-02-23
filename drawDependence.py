@@ -1,6 +1,4 @@
 import os
-import ast
-from importlib import import_module
 import re
 from collections import  deque, defaultdict
 import argparse
@@ -8,24 +6,81 @@ import json
 
 os.makedirs("./output", exist_ok=True)
 
+prefix = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>G6 Graph Example</title>
+  <script src="https://unpkg.com/@antv/g6@5/dist/g6.min.js"></script>
+  <style>
+    #container {
+      /* width: 500px; */
+      /* height: 500px; */
+      width: 100vw;
+      height: 100vh;
+      border: 1px solid #ccc; /* 可选：为容器添加边框 */
+    }
+  </style>
+</head>
+<body>
+<div id="container"></div>
+<script>
+    const data = '''
+
+suffix = '''
+
+    const graph = new G6.Graph({
+        container: 'container',
+        data,
+        node: {
+            style: {
+                labelText: (d) => d.text,
+            },
+        },
+        edge: {
+            type: 'line',
+            style: {
+                endArrow: true
+            }
+        },
+        combo: {
+            type: 'rect',
+            style: {
+                labelText: (d) => d.id,
+                padding: 20,
+            },
+        },
+            behaviors: ['drag-element', 'collapse-expand'],
+    });
+
+    graph.render();
+</script>
+</body>
+</html>'''
+
 def parse_imports(py_file_path):
+    
     with open(py_file_path, encoding='utf-8') as f:
         code = f.read()
-    try:
-        tree = ast.parse(code)
-    except SyntaxError as e:
-        print(e)
-        raise e
+    
     imports_list = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                if alias.name not in imports_list:
-                    imports_list.append(alias.name)
-        elif isinstance(node, ast.ImportFrom):
-            for alias in node.names:
-                if node.module + "." + alias.name not in imports_list:
-                    imports_list.append(node.module + "." + alias.name)
+    
+    pattern = r'(?:from\s+([\w.]+)\s+import\s+([\w.]+(?:,\s*[\w.]+)*)|import\s+([\w.]+(?:,\s*[\w.]+)*))'
+
+    matches = re.findall(pattern, code)
+
+    imports_list = []
+    for match in matches:
+        if match[0]:
+            module = match[0]
+            for item in match[1].split(','):
+                item = item.strip()
+                imports_list.append(f'{module}.{item}')
+        else:
+            for item in match[2].split(','):
+                item = item.strip()
+                imports_list.append(f'{item}')
+
     return imports_list
 
 def find_package_path(package_name, directory):
@@ -69,20 +124,12 @@ def find_package_path(package_name, directory):
             return find_package_path(new_package_name, base_path)
     
     return ""
-
-def is_package_installed(package_name):
-    try:
-        import_module(package_name)
-        return True
-    except ImportError:
-        return False
     
 def analyze_dependencies(py_file_path):
 
     queue = deque()
     visited = []
-    external_packages = []
-    unfound_packages = []
+    external_packages = set()
     py_packages_path = {}
 
 
@@ -112,14 +159,9 @@ def analyze_dependencies(py_file_path):
                     queue.append(package_path)
                 py_packages_path[current_py_path].append(package_path)
             else:
-                if is_package_installed(package_name):
-                    if package_name not in external_packages:
-                        external_packages.append(package_name)
-                else:
-                    if package_name not in unfound_packages:
-                        unfound_packages.append(package_name)
+                external_packages.add(package_name.split(".")[0])
 
-    return external_packages, unfound_packages, py_packages_path
+    return external_packages, py_packages_path
 
 def extract_dirs(path):
     dirs = []
@@ -220,7 +262,8 @@ def main():
     basename = os.path.basename(args.py_path)
 
     
-    internal_dependence =  analyze_dependencies(args.py_path)[2]
+    external_package, internal_dependence =  analyze_dependencies(args.py_path)
+    print(external_package)
 
     new_internal_dependence = defaultdict(list)
 
@@ -232,11 +275,7 @@ def main():
 
     data = standardize_dependencies(new_internal_dependence)
 
-    with open("./template.html", encoding='utf-8') as f:
-        template_html = f.read()
-
-    template_html = template_html.replace("{}", json.dumps(data, indent=4))
-
+    template_html =prefix + json.dumps(data, indent=4) + suffix
     
     output_name = basename.replace(".py", ".html")
     with open(f"./output/{output_name}", 'w', encoding='utf-8') as f:
