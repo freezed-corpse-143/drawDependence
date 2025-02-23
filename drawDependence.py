@@ -4,8 +4,6 @@ from collections import  deque, defaultdict
 import argparse
 import json
 
-os.makedirs("./output", exist_ok=True)
-
 prefix = '''<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -242,28 +240,21 @@ def standardize_dependencies(internal_dependence):
         "combos": combos
     }
     return data
-    
 
-def main():
-    parser = argparse.ArgumentParser(description="generate dependence path")
-    parser.add_argument("py_path", type=str, help="python file path")
 
-    args = parser.parse_args()
-
-    if not os.path.exists(args.py_path):
-        print(f"{args.py_path} doesn't exist")
+def process_single_file(file_path):
+    if not os.path.exists(file_path):
+        print(f"{file_path} doesn't exist")
         return
     
-    project_dir = os.path.dirname(args.py_path)
+    project_dir = os.path.dirname(file_path)
     project_dir = project_dir.replace("\\", "/")
     if project_dir.endswith("/"):
         project_dir =project_dir[:-1]
 
-    basename = os.path.basename(args.py_path)
-
     
-    external_package, internal_dependence =  analyze_dependencies(args.py_path)
-    print(external_package)
+    external_package, internal_dependence =  analyze_dependencies(file_path)
+    print(f"{file_path} external package", external_package)
 
     new_internal_dependence = defaultdict(list)
 
@@ -277,9 +268,34 @@ def main():
 
     template_html =prefix + json.dumps(data, indent=4) + suffix
     
-    output_name = basename.replace(".py", ".html")
-    with open(f"./output/{output_name}", 'w', encoding='utf-8') as f:
+    output_path = file_path.replace(".py", ".html")
+    with open(output_path, 'w', encoding='utf-8') as f:
         f.write(template_html)
+
+def process_directory(directory_path):
+    if not os.path.isdir(directory_path):
+        print(f"{directory_path} is not a directory")
+        return
+
+    for item in os.listdir(directory_path):
+        item_path = os.path.join(directory_path, item)
+        if os.path.isfile(item_path) and item_path.endswith('.py'):
+            process_single_file(item_path)
+
+def main():
+    parser = argparse.ArgumentParser(description="Generate dependency path")
+    parser.add_argument("path", type=str, help="Python file or directory path")
+
+    args = parser.parse_args()
+
+    path = args.path
+
+    if os.path.isfile(path) and path.endswith('.py'):
+        process_single_file(path)
+    elif os.path.isdir(path):
+        process_directory(path)
+    else:
+        print(f"{path} is neither a valid Python file nor a directory")
 
 if __name__ == "__main__":
     main()
