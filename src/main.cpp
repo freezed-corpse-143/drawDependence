@@ -6,7 +6,7 @@
 #include "GraphGenerator.h"
 #include "Utils.h"
 
-void processSingleFile(const std::string& filePath) {
+void processSingleFile(const std::string& filePath, const std::string& project_dir) {
 
     const std::string prefix = R"html(
 <!DOCTYPE html>
@@ -33,6 +33,8 @@ void processSingleFile(const std::string& filePath) {
 
     const graph = new G6.Graph({
         container: 'container',
+        width: window.innerWidth,
+        height: window.innerHeight, 
         data,
         node: {
             style: {
@@ -52,7 +54,7 @@ void processSingleFile(const std::string& filePath) {
                 padding: 20,
             },
         },
-            behaviors: ['drag-element', 'collapse-expand'],
+            behaviors: ['drag-element', 'collapse-expand', 'zoom-canvas'],
     });
 
     graph.render();
@@ -64,11 +66,12 @@ void processSingleFile(const std::string& filePath) {
         std::cerr << filePath << " doesn't exist" << std::endl;
         return;
     }
+    std::string temp_dir = project_dir; // 创建可修改的副本
+    if (!temp_dir.empty() && temp_dir.back() == std::filesystem::path::preferred_separator) {
+        temp_dir.pop_back();
+    }
 
-    std::string projectDir = std::filesystem::path(filePath).parent_path().string();
-    projectDir = Utils::normalizePath(projectDir);
-
-    auto [externalPackages, internalDependence] = DependencyAnalyzer::analyzeDependencies(filePath);
+    auto [externalPackages, internalDependence] = DependencyAnalyzer::analyzeDependencies(filePath, temp_dir);
     std::cout << filePath << " external package: ";
     for (const std::string& package : externalPackages) {
         std::cout << package << " ";
@@ -77,11 +80,10 @@ void processSingleFile(const std::string& filePath) {
 
     std::unordered_map<std::string, std::vector<std::string>> newInternalDependence;
     for (const auto& [key, values] : internalDependence) {
-        std::string source = Utils::normalizePath(key);
-        source = Utils::replace(source, projectDir, ".");
+        std::string source;
+        source = Utils::replace(key, temp_dir, ".");
         for (const std::string& target : values) {
-            std::string normalizedTarget = Utils::normalizePath(target);
-            normalizedTarget = Utils::replace(normalizedTarget, projectDir, ".");
+            std::string normalizedTarget = Utils::replace(target, temp_dir, ".");
             newInternalDependence[source].push_back(normalizedTarget);
         }
     }
@@ -96,7 +98,7 @@ void processSingleFile(const std::string& filePath) {
     outputFile.close();
 }
 
-void processDirectory(const std::string& directoryPath) {
+void processDirectory(const std::string& directoryPath, const std::string& project_dir) {
     if (!std::filesystem::is_directory(directoryPath)) {
         std::cerr << directoryPath << " is not a directory" << std::endl;
         return;
@@ -104,23 +106,35 @@ void processDirectory(const std::string& directoryPath) {
 
     for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
         if (entry.is_regular_file() && entry.path().extension() == ".py") {
-            processSingleFile(entry.path().string());
+            processSingleFile(entry.path().string(), project_dir);
         }
     }
 }
 
 int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        std::cerr << "Usage: " << argv[0] << " <path>" << std::endl;
+
+    if (argc < 2 || argc > 3) {
+        std::cerr << "Usage: " << argv[0] << " <path> [project_dir]" << std::endl;
+        std::cerr << "Generate dependency path" << std::endl;
+        std::cerr << "Arguments:" << std::endl;
+        std::cerr << "  path         Python file or directory path" << std::endl;
+        std::cerr << "  project_dir  Optional project directory path" << std::endl;
         return 1;
     }
 
     std::string path = argv[1];
+    std::string project_dir;
+
+    if (argc == 3) {
+        project_dir = argv[2];
+    } else {
+        project_dir = std::filesystem::path(path).parent_path().string();
+    }
 
     if (std::filesystem::is_regular_file(path) && Utils::ends_with(path, ".py")) {
-        processSingleFile(path);
+        processSingleFile(path, project_dir);
     } else if (std::filesystem::is_directory(path)) {
-        processDirectory(path);
+        processDirectory(path, project_dir);
     } else {
         std::cerr << path << " is neither a valid Python file nor a directory" << std::endl;
     }

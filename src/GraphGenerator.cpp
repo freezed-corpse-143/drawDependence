@@ -5,13 +5,14 @@
 #include <algorithm>
 #include <set>
 #include <unordered_set>
+#include <filesystem>
 
 nlohmann::json GraphGenerator::standardizeDependencies(const std::unordered_map<std::string, std::vector<std::string>>& internalDependence) {
     std::set<std::string> fileSet;
     for (const auto& [key, values] : internalDependence) {
-        fileSet.insert(Utils::normalizePath(key));
+        fileSet.insert(key);
         for (const std::string& value : values) {
-            fileSet.insert(Utils::normalizePath(value));
+            fileSet.insert(value);
         }
     }
 
@@ -35,7 +36,7 @@ nlohmann::json GraphGenerator::standardizeDependencies(const std::unordered_map<
         item["id"] = filePath;
         item["text"] = Utils::getBaseName(filePath);
         item["combo"] = Utils::getDirectory(filePath);
-        item["style"]["x"] = 400 + Utils::countSubstrings(item["combo"], "/") * 100;
+        item["style"]["x"] = 400 + Utils::countSubstrings(item["combo"], std::string(1, std::filesystem::path::preferred_separator)) * 100;
         item["style"]["y"] = 200 + comboY[item["combo"]] * 100;
         comboY[item["combo"]]++;
         nodes.push_back(item);
@@ -65,8 +66,8 @@ nlohmann::json GraphGenerator::standardizeDependencies(const std::unordered_map<
         for (const std::string& target : values) {
             nlohmann::json item;
             item["id"] = std::to_string(index++);
-            item["source"] = Utils::normalizePath(key);
-            item["target"] = Utils::normalizePath(target);
+            item["source"] = key;
+            item["target"] = target;
             edges.push_back(item);
         }
     }

@@ -10,7 +10,7 @@
 
 class DependencyAnalyzer {
 public:
-    static std::pair<std::unordered_set<std::string>, std::unordered_map<std::string, std::vector<std::string>>> analyzeDependencies(const std::string& filePath);
+    static std::pair<std::unordered_set<std::string>, std::unordered_map<std::string, std::vector<std::string>>> analyzeDependencies(const std::string& filePath, const std::string& project_dir);
 };
 
 #endif // DEPENDENCYANALYZER_H

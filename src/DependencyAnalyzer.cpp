@@ -6,13 +6,13 @@
 #include <unordered_set>
 #include <unordered_map>
 
-std::pair<std::unordered_set<std::string>, std::unordered_map<std::string, std::vector<std::string>>> DependencyAnalyzer::analyzeDependencies(const std::string& filePath) {
+std::pair<std::unordered_set<std::string>, std::unordered_map<std::string, std::vector<std::string>>> DependencyAnalyzer::analyzeDependencies(const std::string& filePath, const std::string& project_dir) {
     std::queue<std::string> queue;
     std::unordered_set<std::string> visited;
     std::unordered_set<std::string> externalPackages;
     std::unordered_map<std::string, std::vector<std::string>> pyPackagesPath;
 
-    queue.push(filePath);
+    queue.emplace(filePath);
 
     while (!queue.empty()) {
         std::string currentPyPath = queue.front();
@@ -32,11 +32,15 @@ std::pair<std::unordered_set<std::string>, std::unordered_map<std::string, std::
             std::string directory = Utils::getDirectory(currentPyPath);
             std::string packagePath = Utils::findPackagePath(packageName, directory);
 
+            if(packagePath.empty()){
+                packagePath = Utils::findPackagePath(packageName, project_dir);
+            }
+
             if (!packagePath.empty()) {
                 if (visited.find(packagePath) == visited.end()) {
-                    queue.push(packagePath);
+                    queue.emplace(packagePath);
                 }
-                pyPackagesPath[currentPyPath].push_back(packagePath);
+                pyPackagesPath[currentPyPath].emplace_back(packagePath);
             } else {
                 externalPackages.insert(packageName.substr(0, packageName.find('.')));
             }

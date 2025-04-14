@@ -8,7 +8,6 @@
 class Utils {
 public:
     static std::string findPackagePath(const std::string& packageName, const std::string& directory);
-    static std::string normalizePath(const std::string& path);
     static std::string replace(const std::string& str, const std::string& from, const std::string& to);
     static std::string getDirectory(const std::string& filePath);
     static std::string getBaseName(const std::string& path);

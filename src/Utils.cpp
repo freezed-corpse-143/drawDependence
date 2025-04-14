@@ -84,12 +84,6 @@ std::string Utils::findPackagePath(const std::string& packageName, const std::st
     return "";
 }
 
-std::string Utils::normalizePath(const std::string& path) {
-    std::string normalizedPath = path;
-    std::replace(normalizedPath.begin(), normalizedPath.end(), '\\', '/');
-    return normalizedPath;
-}
-
 std::string Utils::replace(const std::string& str, const std::string& from, const std::string& to) {
     std::string result = str;
     size_t start_pos = 0;
@@ -110,11 +104,11 @@ std::string Utils::getBaseName(const std::string& path) {
 
 std::vector<std::string> Utils::extractDirs(const std::string& path) {
     std::vector<std::string> dirs;
-    std::string normalizedPath = normalizePath(path);
-    if(normalizedPath.back() == '/'){
+    std::string normalizedPath = path;
+    if(path.back() == std::filesystem::path::preferred_separator){
         normalizedPath.pop_back();
     }
-    std::string currentPath = normalizedPath;
+    std::string currentPath = path;
     while (true) {
         currentPath = std::filesystem::path(currentPath).parent_path().string();
         if (currentPath.empty()) {

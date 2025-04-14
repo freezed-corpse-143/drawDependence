@@ -29,6 +29,8 @@ suffix = '''
 
     const graph = new G6.Graph({
         container: 'container',
+        width: window.innerWidth,
+        height: window.innerHeight, 
         data,
         node: {
             style: {
@@ -48,7 +50,7 @@ suffix = '''
                 padding: 20,
             },
         },
-            behaviors: ['drag-element', 'collapse-expand'],
+            behaviors: ['drag-element', 'collapse-expand', 'zoom-canvas'],
     });
 
     graph.render();
@@ -123,7 +125,7 @@ def find_package_path(package_name, directory):
     
     return ""
     
-def analyze_dependencies(py_file_path):
+def analyze_dependencies(py_file_path, project_dir):
 
     queue = deque()
     visited = []
@@ -151,6 +153,8 @@ def analyze_dependencies(py_file_path):
         for package_name in imports_list:
             directory = os.path.dirname(current_py_path)
             package_path = find_package_path(package_name, directory)
+            if not package_path:
+                package_path = find_package_path(package_name, project_dir)
 
             if package_path:
                 if package_path not in visited:
@@ -174,9 +178,9 @@ def extract_dirs(path):
 def standardize_dependencies(internal_dependence):
     file_set = set()
     for key in internal_dependence:
-        file_set.add(key.replace("\\", '/'))
+        file_set.add(key)
         for item in internal_dependence[key]:
-            file_set.add(item.replace("\\", "/"))
+            file_set.add(item)
     file_list = list(file_set)
 
     dir_set = set()
@@ -194,7 +198,7 @@ def standardize_dependencies(internal_dependence):
             "combo": os.path.dirname(file_path)
         }
         style = {
-            "x": 400 + len(item['combo'].split("/")) * 100,
+            "x": 400 + len(item['combo'].split(os.sep)) * 100,
             "y": 200 + combo_y[item['combo']] * 100
         }
         combo_y[item['combo']] += 1
@@ -218,8 +222,8 @@ def standardize_dependencies(internal_dependence):
         for target in internal_dependence[key]:
             item = {
                 "id": str(index),
-                "source": key.replace("\\", "/"),
-                "target": target.replace("\\", "/")
+                "source": key,
+                "target": target
             }
             index += 1
             edges.append(item)
@@ -242,26 +246,24 @@ def standardize_dependencies(internal_dependence):
     return data
 
 
-def process_single_file(file_path):
+def process_single_file(file_path, project_dir):
     if not os.path.exists(file_path):
         print(f"{file_path} doesn't exist")
         return
-    
-    project_dir = os.path.dirname(file_path)
-    project_dir = project_dir.replace("\\", "/")
-    if project_dir.endswith("/"):
+
+    if project_dir.endswith(os.sep):
         project_dir =project_dir[:-1]
 
     
-    external_package, internal_dependence =  analyze_dependencies(file_path)
+    external_package, internal_dependence =  analyze_dependencies(file_path, project_dir)
     print(f"{file_path} external package", external_package)
 
     new_internal_dependence = defaultdict(list)
 
     for key in internal_dependence:
-        source = key.replace("\\", "/").replace(project_dir, ".")
+        source = key.replace(project_dir, ".")
         for target in internal_dependence[key]:
-            target = target.replace("\\", "/").replace(project_dir, ".")
+            target = target.replace(project_dir, ".")
             new_internal_dependence[source].append(target)
 
     data = standardize_dependencies(new_internal_dependence)
@@ -272,7 +274,7 @@ def process_single_file(file_path):
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(template_html)
 
-def process_directory(directory_path):
+def process_directory(directory_path, project_dir):
     if not os.path.isdir(directory_path):
         print(f"{directory_path} is not a directory")
         return
@@ -280,20 +282,25 @@ def process_directory(directory_path):
     for item in os.listdir(directory_path):
         item_path = os.path.join(directory_path, item)
         if os.path.isfile(item_path) and item_path.endswith('.py'):
-            process_single_file(item_path)
+            process_single_file(item_path, project_dir)
 
 def main():
     parser = argparse.ArgumentParser(description="Generate dependency path")
     parser.add_argument("path", type=str, help="Python file or directory path")
+    parser.add_argument("project_dir", type=str, nargs='?', default=None,
+                       help="Optional project directory path (positional argument)")
 
     args = parser.parse_args()
 
     path = args.path
+    project_dir = args.project_dir
+    if not project_dir:
+       project_dir = os.path.dirname(path)
 
     if os.path.isfile(path) and path.endswith('.py'):
-        process_single_file(path)
+        process_single_file(path, project_dir)
     elif os.path.isdir(path):
-        process_directory(path)
+        process_directory(path, project_dir)
     else:
         print(f"{path} is neither a valid Python file nor a directory")
 
