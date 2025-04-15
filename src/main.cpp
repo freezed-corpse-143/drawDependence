@@ -98,7 +98,7 @@ void processSingleFile(const std::string& filePath, const std::string& project_d
     outputFile.close();
 }
 
-void processDirectory(const std::string& directoryPath) {
+void processDirectory(const std::string& directoryPath, const std::string& project_dir) {
     if (!std::filesystem::is_directory(directoryPath)) {
         std::cerr << directoryPath << " is not a directory" << std::endl;
         return;
@@ -106,7 +106,7 @@ void processDirectory(const std::string& directoryPath) {
 
     for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
         if (entry.is_regular_file() && entry.path().extension() == ".py") {
-            processSingleFile(entry.path().string(), directoryPath);
+            processSingleFile(entry.path().string(), project_dir);
         }
     }
 }
@@ -123,18 +123,21 @@ int main(int argc, char* argv[]) {
     }
 
     std::string path = argv[1];
-
+    std::string project_dir;
+    if (argc == 3) {
+        project_dir = argv[2];
+    }
 
     if (std::filesystem::is_regular_file(path) && Utils::ends_with(path, ".py")) {
-        std::string project_dir;
-        if (argc == 3) {
-            project_dir = argv[2];
-        } else {
+        if (argc != 3) {
             project_dir = std::filesystem::path(path).parent_path().string();
         }
         processSingleFile(path, project_dir);
     } else if (std::filesystem::is_directory(path)) {
-        processDirectory(path);
+        if (argc != 3) {
+            project_dir = std::filesystem::path(path).parent_path().string();
+        }
+        processDirectory(path, project_dir);
     } else {
         std::cerr << path << " is neither a valid Python file nor a directory" << std::endl;
     }
