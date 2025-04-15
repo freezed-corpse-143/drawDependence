@@ -66,7 +66,7 @@ void processSingleFile(const std::string& filePath, const std::string& project_d
         std::cerr << filePath << " doesn't exist" << std::endl;
         return;
     }
-    std::string temp_dir = project_dir; // 创建可修改的副本
+    std::string temp_dir = project_dir;
     if (!temp_dir.empty() && temp_dir.back() == std::filesystem::path::preferred_separator) {
         temp_dir.pop_back();
     }
@@ -98,7 +98,7 @@ void processSingleFile(const std::string& filePath, const std::string& project_d
     outputFile.close();
 }
 
-void processDirectory(const std::string& directoryPath, const std::string& project_dir) {
+void processDirectory(const std::string& directoryPath) {
     if (!std::filesystem::is_directory(directoryPath)) {
         std::cerr << directoryPath << " is not a directory" << std::endl;
         return;
@@ -106,7 +106,7 @@ void processDirectory(const std::string& directoryPath, const std::string& proje
 
     for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
         if (entry.is_regular_file() && entry.path().extension() == ".py") {
-            processSingleFile(entry.path().string(), project_dir);
+            processSingleFile(entry.path().string(), directoryPath);
         }
     }
 }
@@ -123,18 +123,18 @@ int main(int argc, char* argv[]) {
     }
 
     std::string path = argv[1];
-    std::string project_dir;
 
-    if (argc == 3) {
-        project_dir = argv[2];
-    } else {
-        project_dir = std::filesystem::path(path).parent_path().string();
-    }
 
     if (std::filesystem::is_regular_file(path) && Utils::ends_with(path, ".py")) {
+        std::string project_dir;
+        if (argc == 3) {
+            project_dir = argv[2];
+        } else {
+            project_dir = std::filesystem::path(path).parent_path().string();
+        }
         processSingleFile(path, project_dir);
     } else if (std::filesystem::is_directory(path)) {
-        processDirectory(path, project_dir);
+        processDirectory(path);
     } else {
         std::cerr << path << " is neither a valid Python file nor a directory" << std::endl;
     }

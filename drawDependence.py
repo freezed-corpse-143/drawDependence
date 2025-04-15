@@ -274,7 +274,7 @@ def process_single_file(file_path, project_dir):
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(template_html)
 
-def process_directory(directory_path, project_dir):
+def process_directory(directory_path):
     if not os.path.isdir(directory_path):
         print(f"{directory_path} is not a directory")
         return
@@ -282,7 +282,7 @@ def process_directory(directory_path, project_dir):
     for item in os.listdir(directory_path):
         item_path = os.path.join(directory_path, item)
         if os.path.isfile(item_path) and item_path.endswith('.py'):
-            process_single_file(item_path, project_dir)
+            process_single_file(item_path, directory_path)
 
 def main():
     parser = argparse.ArgumentParser(description="Generate dependency path")
@@ -293,14 +293,14 @@ def main():
     args = parser.parse_args()
 
     path = args.path
-    project_dir = args.project_dir
-    if not project_dir:
-       project_dir = os.path.dirname(path)
 
     if os.path.isfile(path) and path.endswith('.py'):
+        project_dir = args.project_dir
+        if not project_dir:
+            project_dir = os.path.dirname(path)
         process_single_file(path, project_dir)
     elif os.path.isdir(path):
-        process_directory(path, project_dir)
+        process_directory(path)
     else:
         print(f"{path} is neither a valid Python file nor a directory")
 
