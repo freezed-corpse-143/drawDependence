@@ -118,6 +118,7 @@ def find_package_path(package_name, directory):
     
     if os.path.isdir(base_path):
         if len(parts) == 1:
+            print(package_name, directory)
             raise Exception("please replace 'import module' with a specific one.")
         else:
             new_package_name = ".".join(parts[1:])
