@@ -69,6 +69,15 @@ def parse_imports(py_file_path):
 
     matches = re.findall(pattern, code)
 
+    pattern2 = re.compile(r"(?:from\s+([\w.]+)\s+)?import\s+\(([\s\S]*?)\)", re.DOTALL)
+    matches2 = pattern2.findall(code)
+    for match in matches2:
+        if match[0]:
+            ms = match[1].replace(" ", "").replace("\n", "").split(",")
+            for item in ms:
+                if item != "":
+                    matches.append((match[0], item, ""))
+
     imports_list = []
     for match in matches:
         if match[0]:
@@ -80,7 +89,7 @@ def parse_imports(py_file_path):
             for item in match[2].split(','):
                 item = item.strip()
                 imports_list.append(f'{item}')
-
+    imports_list = [item.lstrip(".") for item in imports_list]
     return imports_list
 
 def find_package_path(package_name, directory):
@@ -93,38 +102,46 @@ def find_package_path(package_name, directory):
         return module_path
 
     init_file_path = os.path.join(directory, "__init__.py")
+    result = ""
     if os.path.isfile(init_file_path):
         with open(init_file_path, "r", encoding='utf-8') as file:
             content = file.read()
-        pattern = re.compile(r"from\s+\.(\w+)\s+import\s+(\w+)(\s+as\s+(\w+))?")
-        matches = pattern.findall(content)
-        
+        pattern1 = re.compile(r"from\s+([\w.]+)\s+import\s+(\w+)(?:\s+as\s+(\w+))?")
+        matches = pattern1.findall(content)
+        pattern2 = re.compile(r"(?:from\s+([\w.]+)\s+)?import\s+\(([\s\S]*?)\)", re.DOTALL)
+        matches2 = pattern2.findall(content)
+        for match in matches2:
+            if match[0]:
+                ms = match[1].replace(" ", "").replace("\n", "").split(",")
+                for item in ms:
+                    if item != "":
+                        matches.append((match[0], item, ""))
         for match in matches:
-            xxx, yyy, _, zzz = match
+            xxx, yyy, zzz = match
+            if xxx.startswith("."):
+                xxx = xxx[1:]
             search_path = os.path.join(directory, xxx)
-            
             if not zzz:
-                if os.path.isfile(f"{search_path}.py"):
+                if os.path.isfile(f"{search_path}.py") and yyy == first_part:
                     return f"{search_path}.py"
                 elif os.path.isdir(search_path):
-                    return find_package_path(package_name, search_path)
+                    result = find_package_path(package_name, search_path)
             
-            elif zzz == first_part:
+            if not result and zzz == first_part:
                 new_package_name = ".".join([yyy] + parts[1:])
                 if os.path.isfile(f"{search_path}.py"):
                     return f"{search_path}.py"
                 elif os.path.isdir(search_path):
-                    return find_package_path(new_package_name, search_path)
+                    result = find_package_path(new_package_name, search_path)
     
-    if os.path.isdir(base_path):
+    if not result and os.path.isdir(base_path):
         if len(parts) == 1:
-            print(package_name, directory)
             raise Exception("please replace 'import module' with a specific one.")
         else:
             new_package_name = ".".join(parts[1:])
-            return find_package_path(new_package_name, base_path)
+            result = find_package_path(new_package_name, base_path)
     
-    return ""
+    return result
     
 def analyze_dependencies(py_file_path, project_dir):
 
@@ -156,7 +173,6 @@ def analyze_dependencies(py_file_path, project_dir):
             package_path = find_package_path(package_name, directory)
             if not package_path:
                 package_path = find_package_path(package_name, project_dir)
-
             if package_path:
                 if package_path not in visited:
                     queue.append(package_path)
